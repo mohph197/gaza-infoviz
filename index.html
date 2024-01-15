@@ -1,11 +1,16 @@
 <!DOCTYPE html>
 <html lang="en">
 	<head>
-        <script src="./lib/tailwindcss.3.3.5.js"></script>
+		<script src="./lib/tailwindcss.3.3.5.js"></script>
 		<script src="./lib/d3.v7.min.js"></script>
-        <script src="./gliph.js" defer></script>
+		<script src="./gliph.js" defer></script>
+		<style type="text/tailwindcss">
+			.tooltip {
+				@apply absolute bg-white p-2 border-2 border-gray-500 rounded-lg hidden;
+			}
+		</style>
 	</head>
-	<body>
-        <div id="graph"></div>
-    </body>
+	<body class="flex justify-center items-center h-screen">
+		<div id="graph"></div>
+	</body>
 </html>

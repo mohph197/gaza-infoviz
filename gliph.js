@@ -1,9 +1,9 @@
-// set the dimensions and margins of the graph
-const margin = { top: 20, right: 30, bottom: 0, left: 10 },
-	width = 460 - margin.left - margin.right,
-	height = 400 - margin.top - margin.bottom;
+// Set the dimensions and margins of the graph
+const margin = { top: 40, right: 50, bottom: 0, left: 80 },
+	width = window.innerWidth - margin.left - margin.right,
+	height = 600 - margin.top - margin.bottom;
 
-// append the svg object to the body of the page
+// Append the svg object to the body of the page
 const svg = d3
 	.select('#graph')
 	.append('svg')
@@ -12,13 +12,24 @@ const svg = d3
 	.append('g')
 	.attr('transform', `translate(${margin.left}, ${margin.top})`);
 
-// Parse the Data
-d3.csv(
-	// 'https://raw.githubusercontent.com/holtzy/data_to_viz/master/Example_dataset/5_OneCatSevNumOrdered_wide.csv'
-    "./data/kills-injuries-gaza.csv"
-).then(function (data) {
-	// List of groups = header of the csv files
+// Get the data
+d3.csv('./data/kills-injuries-gaza.csv').then(function (data) {
+	// Data column names: Killed, Injured
 	const keys = data.columns.slice(1);
+
+	const parseDate = d3.timeParse('%d-%m-%Y');
+	const formatDate = d3.timeFormat('%d-%m-%Y');
+
+	// Process data: transform dates and remove commas
+	const dates = data.map((d) => {
+		d.Date = parseDate(d.Date);
+		return d.Date;
+	});
+	[...data].forEach((d) => {
+		keys.forEach((k) => {
+			d[k] = parseInt(d[k].replace(/,/g, ''));
+		});
+	});
 
 	// Add X axis
 	const x = d3
@@ -29,59 +40,97 @@ d3.csv(
 			})
 		)
 		.range([0, width]);
+
 	svg
 		.append('g')
-		.attr('transform', `translate(0, ${height * 0.8})`)
+		.attr('transform', `translate(0, ${height - 55})`)
 		.call(
 			d3
 				.axisBottom(x)
-				.tickSize(-height * 0.7)
-				.tickValues([1900, 1925, 1975, 2000])
+				.tickSize(-height + 55)
+				.tickValues(dates)
+				.tickFormat(formatDate)
 		)
 		.select('.domain')
 		.remove();
-	// Customization
-	svg.selectAll('.tick line').attr('stroke', '#b8b8b8');
 
-	// Add X axis label:
+	// Ticks customization
+	svg.selectAll('.tick line').attr('stroke', '#b8b8b8');
+	svg
+		.selectAll('.tick text')
+		.attr('y', 10)
+		.attr('color', '#b8b8b8')
+		.attr('transform', 'rotate(-70) translate(-30, -10)');
+	svg
+		.selectAll('.tick')
+		.on('mouseover', function (event, d) {
+			d3.select(this).select('line').style('stroke', '#000');
+			d3.select(this)
+				.select('text')
+				.style('color', '#000')
+				.style('font-weight', 'bold');
+		})
+		.on('mouseout', function (event, d) {
+			d3.select(this)
+				.select('line')
+				.style('stroke', d3.select(this).attr('stroke'));
+			d3.select(this)
+				.select('text')
+				.style('color', d3.select(this).attr('color'))
+				.style('font-weight', 'normal');
+		});
+
+	// Add X axis label
 	svg
 		.append('text')
 		.attr('text-anchor', 'end')
-		.attr('x', width)
+		.attr('x', width + margin.left + 10)
 		.attr('y', height - 30)
-		.text('Time (year)');
+		.attr('transform-origin', `${width + margin.left + 10} ${height - 30}`)
+		.attr('transform', 'rotate(-90) translate(50, -60)')
+		.text('Time (days)');
 
 	// Add Y axis
-	const y = d3.scaleLinear().domain([-100000, 100000]).range([height, 0]);
+	const y = d3
+		.scaleLinear()
+		.domain([
+			-d3.max(data, (d) => d3.max(keys, (key) => d[key])),
+			d3.max(data, (d) => d3.max(keys, (key) => d[key])),
+		])
+		.range([height, 0]);
+	svg.append('g').attr('transform', `translate(-30, 0)`).call(d3.axisLeft(y));
 
-	// color palette
+	// Add Y axis label
+	svg
+		.append('text')
+		.attr('x', -margin.left + 10)
+		.attr('y', -15)
+		.text('Persons');
+
+	// Color palette
 	const color = d3.scaleOrdinal().domain(keys).range(d3.schemeDark2);
 
-	//stack the data?
+	//stack the data
 	const stackedData = d3.stack().offset(d3.stackOffsetSilhouette).keys(keys)(
 		data
 	);
 
-	// create a tooltip
-	const Tooltip = svg
-		.append('text')
-		.attr('x', 0)
-		.attr('y', 0)
-		.style('opacity', 0)
-		.style('font-size', 17);
+	// Create a tooltip
+	const tooltip = d3.select('body').append('div').attr('class', 'tooltip');
 
-	// Three function that change the tooltip when user hover / move / leave a cell
+	// Areas hover / leave / move interactions (tooltip and highlight)
 	const mouseover = function (event, d) {
-		Tooltip.style('opacity', 1);
+		tooltip.style('display', 'block').html(`<p>${d.key}</p>`);
 		d3.selectAll('.myArea').style('opacity', 0.2);
 		d3.select(this).style('stroke', 'black').style('opacity', 1);
 	};
 	const mousemove = function (event, d, i) {
-		grp = d.key;
-		Tooltip.text(grp);
+		tooltip
+			.style('left', `${event.pageX + 10}px`)
+			.style('top', `${event.pageY + 10}px`);
 	};
 	const mouseleave = function (event, d) {
-		Tooltip.style('opacity', 0);
+		tooltip.style('display', 'none');
 		d3.selectAll('.myArea').style('opacity', 1).style('stroke', 'none');
 	};
 
@@ -89,7 +138,7 @@ d3.csv(
 	const area = d3
 		.area()
 		.x(function (d) {
-			return x(d.data.year);
+			return x(d.data.Date);
 		})
 		.y0(function (d) {
 			return y(d[0]);
