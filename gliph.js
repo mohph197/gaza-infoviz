@@ -12,6 +12,9 @@ const svg = d3
 	.append('g')
 	.attr('transform', `translate(${margin.left}, ${margin.top})`);
 
+// Create a tooltip
+const tooltip = d3.select('body').append('div').attr('class', 'tooltip');
+
 // Get the data
 d3.csv('./data/kills-injuries-gaza.csv').then(function (data) {
 	// Data column names: Killed, Injured
@@ -69,6 +72,19 @@ d3.csv('./data/kills-injuries-gaza.csv').then(function (data) {
 				.select('text')
 				.style('color', '#000')
 				.style('font-weight', 'bold');
+
+			const val = [...data].filter(
+				(row) => row.Date.getTime() === d.getTime()
+			)[0];
+			const tooltipContent = `
+				<span>Killed: ${val[keys[0]]}</span> /
+				<span>Injured: ${val[keys[1]]}</span>
+			`;
+			tooltip.style('display', 'block');
+			tooltip
+				.style('left', `${event.pageX - tooltip.node().offsetWidth / 2}px`)
+				.style('top', `${d3.select('#graph').node().offsetTop}px`)
+				.html(tooltipContent);
 		})
 		.on('mouseout', function (event, d) {
 			d3.select(this)
@@ -78,6 +94,8 @@ d3.csv('./data/kills-injuries-gaza.csv').then(function (data) {
 				.select('text')
 				.style('color', d3.select(this).attr('color'))
 				.style('font-weight', 'normal');
+
+			tooltip.style('display', 'none');
 		});
 
 	// Add X axis label
@@ -114,9 +132,6 @@ d3.csv('./data/kills-injuries-gaza.csv').then(function (data) {
 	const stackedData = d3.stack().offset(d3.stackOffsetSilhouette).keys(keys)(
 		data
 	);
-
-	// Create a tooltip
-	const tooltip = d3.select('body').append('div').attr('class', 'tooltip');
 
 	// Areas hover / leave / move interactions (tooltip and highlight)
 	const mouseover = function (event, d) {
